@@ -8,13 +8,15 @@
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
     <script src="https://unpkg.com/aframe-gesture-detector/dist/aframe-gesture-detector.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
+
   </head>
   <body style="margin: 0; overflow: hidden">
     <a-scene
       embedded
       renderer="antialias: true; precision: highp; logarithmicDepthBuffer: true;"
       vr-mode-ui="enabled: false"
-      arjs="sourceType: webcam; debugUIEnabled: false;"
+      arjs="sourceType: webcam; trackingMethod: best;"
       gesture-detector
     >
       <!-- Script xử lý xoay bằng cảm ứng -->
@@ -111,7 +113,7 @@
       <!-- Marker -->
       <a-nft 
         type="nft" 
-        url="nft/fset" 
+        url="nft/A2" 
         smooth="true" 
         smoothCount="10" 
         smoothTolerance="0.01" 
