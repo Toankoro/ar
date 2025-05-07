@@ -6,64 +6,297 @@
       content="width=device-width, initial-scale=1.0, user-scalable=no"
     />
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script> -->
     <script src="https://unpkg.com/aframe-gesture-detector/dist/aframe-gesture-detector.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
+    <!-- Thay thế script AR.js hiện tại -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.min.js"></script>
+    <style>
+      video {
+        transform: none;
+      }
 
+      .control-panel {
+        position: absolute;
+        bottom: 15px; /* Điều chỉnh vị trí để sát đáy hơn */
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex; /* Chuyển từ grid sang flex */
+        flex-direction: row; /* Layout ngang */
+        gap: 6px; /* Giảm khoảng cách giữa các nút */
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        padding: 8px 10px; /* Giảm padding để tiết kiệm không gian */
+        border-radius: 14px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        z-index: 999;
+        touch-action: manipulation;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        width: auto; /* Tự điều chỉnh theo nội dung */
+        max-width: 95%; /* Đảm bảo không tràn màn hình */
+      }
+
+      .control-button {
+        padding: 7px 8px; /* Giảm padding */
+        font-size: 11px; /* Giảm kích thước font */
+        font-weight: 500;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(145deg, #ef2e25, #c41c13);
+        color: white;
+        cursor: pointer;
+        touch-action: manipulation;
+        box-shadow: 0 3px 10px rgba(222, 34, 25, 0.3);
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        text-align: center;
+      }
+
+      .control-button:active {
+        transform: scale(0.95);
+        box-shadow: 0 2px 8px rgba(222, 34, 25, 0.4);
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        100% {
+          transform: scale(1.1);
+        }
+      }
+
+      .loading-bar {
+        width: 200px;
+        height: 6px;
+        background: rgba(222, 34, 25, 0.2);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      .progress {
+        width: 100%;
+        height: 100%;
+        background: #de2219;
+        animation: loading 2s infinite;
+        transform-origin: left;
+      }
+
+      @keyframes loading {
+        0% {
+          transform: scaleX(0);
+        }
+        50% {
+          transform: scaleX(1);
+        }
+        100% {
+          transform: scaleX(0);
+          transform-origin: right;
+        }
+      }
+    </style>
+
+    <script>
+      let currentRotationZ = 0;
+      let defaultScale = 50;
+      let currentScale = defaultScale;
+
+      AFRAME.registerComponent("gesture-handler", {
+        schema: { enabled: { default: true } },
+        init: function () {
+          this.el.sceneEl.addEventListener(
+            "onefingermove",
+            this.handleRotation.bind(this)
+          );
+          this.el.sceneEl.addEventListener(
+            "twofingermove",
+            this.handleScale.bind(this)
+          );
+        },
+        handleRotation: function (event) {
+          currentRotationZ -= event.detail.positionChange.x * 0.5;
+          const container = document.getElementById("model-container");
+          container.setAttribute("rotation", `0 0 ${currentRotationZ}`);
+        },
+        handleScale: function (event) {
+          currentScale *=
+            1 + event.detail.spreadChange / event.detail.startSpread;
+          currentScale = Math.min(
+            Math.max(currentScale, defaultScale * 0.3),
+            defaultScale * 5
+          );
+          const model = document.getElementById("duck-model");
+          model.setAttribute(
+            "scale",
+            `${currentScale} ${currentScale} ${currentScale}`
+          );
+        },
+      });
+
+      function rotateModel(direction) {
+        const container = document.getElementById("model-container");
+        currentRotationZ += direction === "left" ? 15 : -15;
+        container.setAttribute("rotation", `0 0 ${currentRotationZ}`);
+      }
+
+      function zoomModel(inOrOut) {
+        const model = document.getElementById("duck-model");
+        if (inOrOut === "in") {
+          currentScale *= 1.1; // Tăng 10%
+        } else {
+          currentScale /= 1.1; // Giảm 10%
+        }
+        currentScale = Math.min(Math.max(currentScale, 0.3), 5);
+        model.setAttribute(
+          "scale",
+          `${currentScale} ${currentScale} ${currentScale}`
+        );
+      }
+
+      window.addEventListener("load", () => {
+        const loadingScreen = document.getElementById("loading-screen");
+        // Hiển thị màn hình load trong 3 giây
+        setTimeout(() => {
+          loadingScreen.style.display = "none";
+          console.log("Màn hình load đã ẩn sau 3 giây.");
+        }, 5000); // 3000ms = 3 giây
+      });
+
+      // Ngăn chặn zoom khi nhấn vào control panel
+      document.querySelector(".control-panel").addEventListener(
+        "touchstart",
+        (event) => {
+          event.preventDefault();
+        },
+        { passive: false }
+      );
+
+      let lastPosition = { x: 0, y: 0, z: 0 };
+      let lastRotation = { x: 0, y: 0, z: 0 };
+
+      AFRAME.registerComponent("stabilize-marker", {
+        tick: function () {
+          const marker = this.el;
+          const position = marker.object3D.position;
+          const rotation = marker.object3D.rotation;
+
+          // Chỉ cập nhật nếu có sự thay đổi lớn
+          if (
+            Math.abs(position.x - lastPosition.x) > 0.01 ||
+            Math.abs(position.y - lastPosition.y) > 0.01 ||
+            Math.abs(position.z - lastPosition.z) > 0.01 ||
+            Math.abs(rotation.x - lastRotation.x) > 0.01 ||
+            Math.abs(rotation.y - lastRotation.y) > 0.01 ||
+            Math.abs(rotation.z - lastRotation.z) > 0.01
+          ) {
+            lastPosition = { ...position };
+            lastRotation = { ...rotation };
+            marker.setAttribute("position", position);
+            marker.setAttribute("rotation", rotation);
+          }
+        },
+      });
+
+      AFRAME.registerComponent("smooth-follow", {
+        schema: { lerp: { default: 0.002 } },
+        tick: function () {
+          const target = this.el.parentEl.object3D;
+          const obj = this.el.object3D;
+          obj.position.lerp(target.position, this.data.lerp);
+          obj.quaternion.slerp(target.quaternion, this.data.lerp);
+        },
+      });
+    </script>
   </head>
   <body style="margin: 0; overflow: hidden">
+    <div
+      id="loading-screen"
+      style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+      "
+    >
+      <!-- <div class="ptit-logo">PTIT</div> -->
+      <img src="logo.png" /> <img />
+      <div class="loading-bar">
+        <div class="progress"></div>
+      </div>
+      <p style="color: #666; font-family: Arial, sans-serif; margin-top: 10px">
+        Đang tải dữ liệu 3D...
+      </p>
+    </div>
+
+    <!-- <a-scene embedded renderer="antialias: true; precision: highp; logarithmicDepthBuffer: true;"
+  vr-mode-ui="enabled: false" arjs="sourceType: webcam; debugUIEnabled: false;" gesture-detector> -->
+    <!-- Thành đoạn này -->
     <a-scene
       embedded
       renderer="antialias: true; precision: highp; logarithmicDepthBuffer: true;"
       vr-mode-ui="enabled: false"
-      arjs="sourceType: webcam; trackingMethod: best;"
+      arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
       gesture-detector
     >
-      <!-- Script xử lý xoay bằng cảm ứng -->
       <script>
         AFRAME.registerComponent("rotate-and-zoom", {
           schema: {
             minScale: { default: 0.3 },
-            maxScale: { default: 5 }
+            maxScale: { default: 5 },
           },
           init: function () {
-            this.rotation = this.el.getAttribute("rotation") || { x: 0, y: 0, z: 0 };
+            this.rotation = this.el.getAttribute("rotation") || {
+              x: 0,
+              y: 0,
+              z: 0,
+            };
             this.scale = this.el.getAttribute("scale") || { x: 1, y: 1, z: 1 };
             this.start = { x: 0, y: 0 };
             this.isDragging = false;
             this.initialPinchDistance = null;
-      
+
             const scene = this.el.sceneEl;
-      
+
             const startDrag = (x, y) => {
               this.isDragging = true;
               this.start.x = x;
               this.start.y = y;
             };
-      
+
             const moveDrag = (x, y) => {
               if (!this.isDragging) return;
               const dx = x - this.start.x;
               const dy = y - this.start.y;
-      
-              this.rotation.z += dx * 0.5; // Xoay Z
-              this.rotation.x += dy * 0.5; // Xoay X
-      
+
+              this.rotation.z -= dx * 0.5; // Đảo ngược hướng xoay Z
+              this.rotation.x += dy * 0.5; // Xoay X (giữ nguyên)
+
               this.el.setAttribute("rotation", this.rotation);
-      
+
               this.start.x = x;
               this.start.y = y;
             };
-      
+
             const endDrag = () => {
               this.isDragging = false;
             };
-      
+
             // Chuột
-            scene.addEventListener("mousedown", (e) => startDrag(e.clientX, e.clientY));
-            window.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
+            scene.addEventListener("mousedown", (e) =>
+              startDrag(e.clientX, e.clientY)
+            );
+            window.addEventListener("mousemove", (e) =>
+              moveDrag(e.clientX, e.clientY)
+            );
             window.addEventListener("mouseup", endDrag);
-      
+
             // Cảm ứng
             scene.addEventListener("touchstart", (e) => {
               if (e.touches.length === 1) {
@@ -73,7 +306,7 @@
                 this.initialPinchDistance = this.getPinchDistance(e);
               }
             });
-      
+
             scene.addEventListener("touchmove", (e) => {
               if (e.touches.length === 1) {
                 moveDrag(e.touches[0].clientX, e.touches[0].clientY);
@@ -84,55 +317,85 @@
                 this.initialPinchDistance = newDist;
               }
             });
-      
+
             scene.addEventListener("touchend", endDrag);
-      
+
             // Wheel zoom (chuột)
             scene.addEventListener("wheel", (e) => {
               const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
               this.applyZoom(zoomFactor);
             });
           },
-      
           getPinchDistance: function (e) {
             const dx = e.touches[0].clientX - e.touches[1].clientX;
             const dy = e.touches[0].clientY - e.touches[1].clientY;
             return Math.sqrt(dx * dx + dy * dy);
           },
-      
+
           applyZoom: function (factor) {
             const newScale = this.scale.x * factor;
-            const limited = Math.min(this.data.maxScale, Math.max(this.data.minScale, newScale));
+            const limited = Math.min(
+              this.data.maxScale,
+              Math.max(this.data.minScale, newScale)
+            );
             this.scale = { x: limited, y: limited, z: limited };
             this.el.setAttribute("scale", this.scale);
-          }
+          },
         });
       </script>
-      
-
-      <!-- Marker -->
-      <a-nft 
-        type="nft" 
-        url="nft/A2" 
-        smooth="true" 
-        smoothCount="10" 
-        smoothTolerance="0.01" 
-        smoothThreshold="5">
-        <!-- Container xoay mô hình -->
-        <a-entity id="model-container" rotation="0 0 0" rotate-and-zoom>
+      <!-- <a-marker preset="hiro" smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="5" stabilize-marker>
+      <a-entity id="model-container" rotation="0 0 0" rotate-and-zoom>
+        <a-entity id="duck-model"
+                  gltf-model="demo.glb"
+                  position="0 0 0"
+                  scale="1 1 1"
+                  rotation="90 180 0">
+        </a-entity>
+      </a-entity>
+    </a-marker> -->
+      <!-- Thành đoạn này -->
+      <a-nft
+        type="nft"
+        url="nft/test"
+        smooth="true"
+        smoothCount="90"
+        smoothTolerance="0.01"
+        smoothThreshold="90"
+        stabilize-marker
+      >
+        <a-entity
+          id="model-container"
+          rotation="0 0 0"
+          position="50 -200 0"
+          rotate-and-zoom
+        >
           <a-entity
             id="duck-model"
-            gltf-model="a7.glb"
+            gltf-model="a1.glb"
             position="0 0 0"
-            scale="1 1 1"
-            rotation="-90 0 0"
-            shadow="cast: true; receive: false"
-          ></a-entity>
+            scale="50 50 50"
+            rotation="90 180 0"
+            smooth-follow="lerp: 0.002"
+          >
+          </a-entity>
         </a-entity>
       </a-nft>
-
       <a-entity camera></a-entity>
     </a-scene>
+
+    <div class="control-panel">
+      <button class="control-button" onclick="rotateModel('left')">
+        ⟲ Xoay trái
+      </button>
+      <button class="control-button" onclick="rotateModel('right')">
+        ⟳ Xoay phải
+      </button>
+      <button class="control-button" onclick="zoomModel('out')">
+        － Zoom out
+      </button>
+      <button class="control-button" onclick="zoomModel('in')">
+        ＋ Zoom in
+      </button>
     </div>
   </body>
 </html>
